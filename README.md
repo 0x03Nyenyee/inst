@@ -21,3 +21,5 @@ InstaDownloader adalah aplikasi web sederhana untuk mendownload gambar dan video
    ```bash
    git clone https://github.com/username/InstaDownloader.git
    cd InstaDownloader
+   pip install -r requirements.txt
+   python main.py
