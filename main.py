@@ -1,20 +1,44 @@
-from flask import Flask, render_template, request, send_from_directory
-from app.downloader import download_media
 import os
+import requests
+from bs4 import BeautifulSoup
+from uuid import uuid4
 
-app = Flask(__name__)
+DOWNLOAD_FOLDER = "downloads"
 
-@app.route("/", methods=["GET", "POST"])
-def index():
-    download_url = None
-    if request.method == "POST":
-        url = request.form["url"]
-        download_url = download_media(url)
-    return render_template("index.html", download_url=download_url)
+def download_instagram_media(instagram_url):
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
 
-@app.route("/downloads/<filename>")
-def downloaded_file(filename):
-    return send_from_directory("static/downloads", filename)
+    print(f"[🔍] Mengambil data dari: {instagram_url}")
+    response = requests.get(instagram_url, headers=headers)
+
+    if response.status_code != 200:
+        print("[❌] Gagal mengakses URL.")
+        return
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    meta_tag = soup.find("meta", property="og:video") or soup.find("meta", property="og:image")
+
+    if not meta_tag:
+        print("[❌] Tidak menemukan media di halaman tersebut.")
+        return
+
+    media_url = meta_tag["content"]
+    file_ext = ".mp4" if "video" in media_url else ".jpg"
+    filename = f"{uuid4()}{file_ext}"
+
+    os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
+    file_path = os.path.join(DOWNLOAD_FOLDER, filename)
+
+    print(f"[⬇️] Mengunduh media dari: {media_url}")
+    with requests.get(media_url, stream=True) as r:
+        with open(file_path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+    print(f"[✅] Sukses! File disimpan di: {file_path}")
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    instagram_url = input("Masukkan URL Instagram: ").strip()
+    download_instagram_media(instagram_url)
